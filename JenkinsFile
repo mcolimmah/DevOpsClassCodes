@@ -1,55 +1,58 @@
 pipeline {
-    agent any
-    stages {
-        stage('compile') {
+	agent {
+		label 'Slave01'
+	}
+	tools {
+		maven 'mymaven'
+	}
+	stages {
+		stage ('CloneRepo')
+		{
 			steps {
-                echo 'compiling..'
-				git url: 'https://github.com/lerndevops/DevOpsClassCodes'
-				bat label: '', script: 'mvn compile'
-            }
-        }
-        stage('codereview-pmd') {
+				git 'https://github.com/mcolimmah/DevOpsClassCodes.git'
+			}
+		}
+		stage ('Build')
+		{
 			steps {
-                echo 'codereview..'
-				bat label: '', script: 'mvn -P metrics pmd:pmd'
-            }
+				sh 'mvn compile'
+			}
+		}
+		
+		stage ('CodeReview')
+		{
+			steps {
+				sh 'mvn pmd:pmd -P metrics'
+			}
 			post {
-                success {
-                    pmd canComputeNew: false, defaultEncoding: '', healthy: '', pattern: '**/pmd.xml', unHealthy: ''
-                }
-            }
-			
-        }
-        stage('unit-test') {
+				success {
+					recordIssues(tools: [pmdParser(pattern: '**/pmd.xml')])
+				}
+			}
+		}
+		
+		stage ('UnitTesting')
+		{
 			steps {
-                echo 'codereview..'
-				bat label: '', script: 'mvn test'
-            }
-			post {
-                success {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
+				sh 'mvn test'
+			}
 			
-        }
-        stage('metric-check') {
+		}
+		
+		stage ('Codecoverage')
+		{
 			steps {
-                echo 'unit test..'
-				bat label: '', script: 'mvn cobertura:cobertura -Dcobertura.report.format=xml'
-            }
-			post {
-                success {
-				cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'target/site/cobertura/coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false                  
-                }
-            }
+				sh 'mvn verify'
+			}
 			
-        }
-        stage('package') {
+		}
+		
+		stage ('Package')
+		{
 			steps {
-                echo 'metric-check..'
-				bat label: '', script: 'mvn package'	
-            }
+				sh 'mvn package'
+			}
 			
-        }
-    }
-}
+		}
+	}
+}	
